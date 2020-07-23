@@ -1,4 +1,4 @@
-package com.zd.ctl.juc.obj.share.seal;
+package com.zd.ctl.juc.obj.share.confinement;
 
 import java.util.Collection;
 import java.util.SortedSet;
