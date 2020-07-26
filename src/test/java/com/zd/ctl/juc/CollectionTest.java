@@ -1,7 +1,9 @@
 package com.zd.ctl.juc;
 
+import com.zd.ctl.juc.obj.composite.clazz.thread.safe.Counter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import sun.misc.Unsafe;
 
 import java.util.Arrays;
 import java.util.List;
@@ -11,6 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -76,28 +79,49 @@ public class CollectionTest {
     @Test
     @DisplayName("测试SynchronizedQueue同步")
     public void testSynchronizedQueue() throws InterruptedException {
-        ExecutorService executor = Executors.newFixedThreadPool(1);
+        ExecutorService executor = Executors.newFixedThreadPool(4);
         SynchronousQueue<String> sq = new SynchronousQueue<>();
 
         Runnable producer = () -> {
             String str = "test";
-            boolean success = sq.offer(str);
-            System.out.println("po:" + str + ", success:" + success);
+            try {
+                sq.put(str);
+                System.out.println("po:" + str);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        };
+
+        Runnable producer1 = () -> {
+            String str = "prod";
+            try {
+                sq.put(str);
+                System.out.println("po:" + str);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
         };
 
         Runnable consumer = () -> {
-            Object o = sq.poll();
+            String o = null;
+            try {
+                o = sq.take();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             System.out.println("co:" + o);
         };
 
         //顺序对于执行存在影响
-        //executor.submit(producer);
-        //executor.submit(producer);
+        executor.submit(consumer);
         //executor.submit(producer);
         executor.submit(consumer);
-        executor.submit(consumer);
-
+        executor.submit(producer);
         executor.awaitTermination(10, TimeUnit.SECONDS);
+        executor.submit(producer1);
+
+        //executor.awaitTermination(200, TimeUnit.SECONDS);
         executor.shutdown();
     }
 
@@ -105,50 +129,56 @@ public class CollectionTest {
     @Test
     @DisplayName("测试SynchronizedQueue同步")
     public void testSynchronizedQueue1() throws InterruptedException {
-        //ExecutorService executor = Executors.newFixedThreadPool(1);
-        SynchronousQueue<String> sq = new SynchronousQueue<>();
-
-//        Runnable producer = () -> {
-//            String str = "test";
-//            boolean success = sq.offer(str);
-//            System.out.println("po:" + str + ", success:" + success);
-//        };
-
-//        Runnable consumer = () -> {
-//            Object o = sq.poll();
-//            System.out.println("co:" + o);
-//        };
-
-        //顺序对于执行存在影响
-        //executor.submit(producer);
-        //executor.submit(producer);
-        //executor.submit(producer);
-        //executor.submit(consumer);
-        //executor.submit(consumer);
-
-        //executor.awaitTermination(10, TimeUnit.SECONDS);
-        //executor.shutdown();
-
+        SynchronousQueue<String> sq = new SynchronousQueue<>(false);
 
         boolean os = sq.offer("abc");
         String ps = sq.poll();
 
         System.out.println(os + ":" + ps);
-
-        os = sq.offer("bcd");
-        ps = sq.poll();
-
-        System.out.println(os + ":" + ps);
-
-        os = sq.offer("cde");
-        ps = sq.poll();
-
-        System.out.println(os + ":" + ps);
-
-
-        ps = sq.poll();
-        os = sq.offer("def");
-
-        System.out.println(os + ":" + ps);
     }
+
+
+    @Test
+    public void testCtlCount(){
+        System.out.println(RUNNING);
+        System.out.println(SHUTDOWN);
+        System.out.println(STOP);
+        System.out.println(TIDYING);
+        System.out.println(TERMINATED);
+
+        System.out.println(CAPACITY);
+        System.out.println(workerCountOf(ctl.get()));
+
+    }
+
+
+    @Test
+    public void test1(){
+        try {
+            Unsafe UNSAFE = sun.misc.Unsafe.getUnsafe();
+            Class<?> k = Counter.class;
+            long value = UNSAFE.objectFieldOffset(k.getDeclaredField("value"));
+
+            System.out.println(value);
+        } catch (Exception e) {
+            throw new Error(e);
+        }
+    }
+
+
+    private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+    private static final int COUNT_BITS = Integer.SIZE - 3;
+    private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
+
+    // runState is stored in the high-order bits
+    private static final int RUNNING    = -1 << COUNT_BITS;
+    private static final int SHUTDOWN   =  0 << COUNT_BITS;
+    private static final int STOP       =  1 << COUNT_BITS;
+    private static final int TIDYING    =  2 << COUNT_BITS;
+    private static final int TERMINATED =  3 << COUNT_BITS;
+
+    // Packing and unpacking ctl
+    private static int runStateOf(int c)     { return c & ~CAPACITY; }
+    private static int workerCountOf(int c)  { return c & CAPACITY; }
+    private static int ctlOf(int rs, int wc) { return rs | wc; }
 }
