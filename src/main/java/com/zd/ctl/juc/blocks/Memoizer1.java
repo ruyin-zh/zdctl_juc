@@ -21,7 +21,7 @@ public class Memoizer1<A,V> implements Computable<A,V> {
 
     /**
      *
-     * 存在的问题:使用synchronized关键字使得程序的吞吐量及时间延迟大大增加
+     * 存在的问题:使用synchronized关键字使得程序的吞吐量及响应延迟大大增加
      *
      *
      * */
