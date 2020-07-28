@@ -25,6 +25,7 @@ public class Memoizer3<A,V> implements Computable<A,V> {
     /**
      *
      * 该版本已经趋于完善,在吞吐量上及延时上均提升不少
+     * 另外多个线程在执行任务时其他线程能够知晓当前任务是否有线程正在执行,从而避免同一个任务多人线程均会执行
      * 存在的问题: 此处f==null在并发情况下会存在多条线程进入,从而导致cache.put()操作仍存在两个线程都执行了了相同计算的问题;
      * 另外此处未针对任务取消情况做处理,未处理任务取消的场景而只是打印了异常
      *
@@ -37,7 +38,7 @@ public class Memoizer3<A,V> implements Computable<A,V> {
             FutureTask<V> ft = new FutureTask<>(eval);
 
             f = ft;
-            //菲原子操作
+            //非原子操作
             cache.put(arg,ft);
             ft.run();
         }
